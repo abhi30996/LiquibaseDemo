@@ -1,0 +1,75 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("mysql:mysql-connector-java:5.1.47")
+    }
+}
+
+configurations {
+    liquibase
+}
+
+dependencies {
+    liquibaseRuntime group: 'org.liquibase.ext', name: 'liquibase-hibernate5', version: 3.8
+}
+
+//loading properties file.
+Properties liquibaseProps = new Properties()
+liquibaseProps.load(new FileInputStream("${projectDir}/src/main/resources/liquibase.properties"))
+
+Properties applicationProps = new Properties()
+applicationProps.load(new FileInputStream("${projectDir}/src/main/resources/application.properties"))
+
+task liquibaseDiffChangeLog(type: JavaExec) {
+    group = "liquibase"
+
+    classpath sourceSets.main.runtimeClasspath
+    main = "liquibase.integration.commandline.Main"
+
+    args "--changeLogFile=${projectDir}/src/main/resources/db/changelog/diffChangeLog.xml"
+    args "--referenceUrl=hibernate:spring:"+liquibaseProps.getProperty('referenceDomain')+"?dialect=org.hibernate.dialect.MySQL5InnoDBDialect"
+    args "--username=" + applicationProps.getProperty('spring.datasource.username')
+    args "--password=" + applicationProps.getProperty('spring.datasource.password')
+    args "--url=" + applicationProps.getProperty('spring.datasource.url')
+    args "--referenceDriver="+liquibaseProps.getProperty('referenceDriver')
+    args "diffChangeLog"
+}
+
+task liquibaseupdate(type: JavaExec) {
+    group = "liquibase"
+    classpath sourceSets.main.runtimeClasspath
+    main = "liquibase.integration.commandline.Main"
+    args "--changeLogFile=${projectDir}/src/main/resources/db/changelog/update.sql"
+    args "--username=" + applicationProps.getProperty('spring.datasource.username')
+    args "--password=" + applicationProps.getProperty('spring.datasource.password')
+    args "--url=" + applicationProps.getProperty('spring.datasource.url')
+    args "executeSql"
+}
+
+task liquibaseupdateSql(type: JavaExec) {
+    group = "liquibase"
+
+    classpath sourceSets.main.runtimeClasspath
+    main = "liquibase.integration.commandline.Main"
+    args "--changeLogFile=${projectDir}/src/main/resources/db/changelog/diffChangeLog.xml"
+    args "--url=" + applicationProps.getProperty('spring.datasource.url')
+    args "--username=" + applicationProps.getProperty('spring.datasource.username')
+    args "--password=" + applicationProps.getProperty('spring.datasource.password')
+    args "updateSQL"
+    standardOutput(new FileOutputStream(System.getProperty("user.dir") + '/src/main/resources/db/changelog/update.sql'));
+}
+
+/*apply plugin: 'org.liquibase.gradle'
+liquibase {
+    activities {
+        main {
+            driver "com.mysql.jdbc.Driver"
+            url liquibaseProps.getProperty('url')
+            username liquibaseProps.getProperty('username')
+            password liquibaseProps.getProperty('password')
+            changeLogFile "${projectDir}/src/main/resources/db/changelog/changelog.xml"
+        }
+    }
+}*/
